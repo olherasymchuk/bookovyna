@@ -4,95 +4,98 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/glebarez/sqlite"
+	"gorm.io/gorm"
 )
 
-type author struct {
-	ID      string `json:"id"`
-	Name    string `json:"name"`
-	Surname string `json:"surname"`
+var db *gorm.DB
+
+type Author struct {
+	gorm.Model
+	Name    string
+	Surname string
+}
+type Publisher struct {
+	gorm.Model
+	Name string
+}
+type Book struct {
+	gorm.Model
+	Title        string
+	Author_ID    uint32
+	Price        float32
+	Publisher_ID uint32
+	Published    uint32
+	ISBN         string
 }
 
-type publisher struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-}
-
-type book struct {
-	ID           string  `json:"id"`
-	Title        string  `json:"title"`
-	Author_ID    string  `json:"author_id"`
-	Price        float64 `json:"price"`
-	Publisher_ID string  `json:"publisher"`
-	Published    int     `json:"published"`
-	ISBN         string  `json:"isbn"`
-}
-
-// authors slice
-var authors = []author{
+var authors = []Author{
 	{
-		ID:      "1",
 		Name:    "Андрій",
 		Surname: "Андрощук",
 	},
 	{
-		ID:      "2",
 		Name:    "Богдан",
 		Surname: "Боровик",
 	},
 	{
-		ID:      "3",
 		Name:    "Вікторія",
 		Surname: "Василенко",
 	},
 }
-
-var publishers = []publisher{
+var publishers = []Publisher{
 	{
-		ID:   "1",
 		Name: "Анархія-друк",
 	},
 	{
-		ID:   "2",
 		Name: "Барка і штиль",
 	},
 	{
-		ID:   "3",
 		Name: "Вокабюляри нової доби",
 	},
 }
-
-var books = []book{
+var books = []Book{
 	{
-		ID:           "1",
 		Title:        "Асканія-Нова. Історія заповідника",
-		Author_ID:    "1",
+		Author_ID:    1,
 		Price:        380.00,
-		Publisher_ID: "1",
+		Publisher_ID: 1,
 		Published:    2024,
 		ISBN:         "1111111111111",
 	},
-
 	{
-		ID:           "2",
 		Title:        "Брати і кузени",
-		Author_ID:    "2",
+		Author_ID:    2,
 		Price:        300.00,
-		Publisher_ID: "2",
+		Publisher_ID: 2,
 		Published:    2024,
 		ISBN:         "1111111111112",
 	},
 	{
-		ID:           "3",
 		Title:        "Віра і майна",
-		Author_ID:    "3",
+		Author_ID:    3,
 		Price:        350.00,
-		Publisher_ID: "3",
+		Publisher_ID: 3,
 		Published:    2024,
 		ISBN:         "1111111111113",
 	},
 }
 
 func main() {
+
+	var err error
+	db, err = gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
+
+	if err != nil {
+		panic("failed to connect database")
+	}
+	db.AutoMigrate(&Author{})
+	db.AutoMigrate(&Publisher{})
+	db.AutoMigrate(&Book{})
+	db.Create(authors)
+	db.Create(publishers)
+	db.Create(books)
+
 	router := gin.Default()
 
 	router.StaticFile("/favicon.ico", "./favicon.ico")
@@ -113,87 +116,100 @@ func main() {
 
 	router.Run("localhost:8080")
 }
-
 func getauthors(c *gin.Context) {
-	c.IndentedJSON(http.StatusOK, authors)
+	if result := db.Find(&authors); result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": result.Error.Error(),
+		})
+		return
+	}
+	c.IndentedJSON(http.StatusOK, &authors)
 }
-
 func getpublishers(c *gin.Context) {
-	c.IndentedJSON(http.StatusOK, publishers)
+	if result := db.Find(&publishers); result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": result.Error.Error(),
+		})
+		return
+	}
+	c.IndentedJSON(http.StatusOK, &publishers)
 }
-
 func getbooks(c *gin.Context) {
-	c.IndentedJSON(http.StatusOK, books)
+	if result := db.Find(&books); result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": result.Error.Error(),
+		})
+		return
+	}
+	c.IndentedJSON(http.StatusOK, &books)
 }
-
 func getauthorByID(c *gin.Context) {
-	id := c.Param("id")
-
-	for _, a := range authors {
-		if a.ID == id {
-			c.IndentedJSON(http.StatusOK, a)
-			return
-		}
+	if result := db.First(&authors, c.Param("id")); result.Error != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": result.Error.Error(),
+		})
+		return
 	}
-	c.IndentedJSON(http.StatusNotFound, gin.H{"message": "Автор не знайдений"})
+	c.IndentedJSON(http.StatusOK, &authors)
 }
-
 func getpublisherByID(c *gin.Context) {
-	id := c.Param("id")
-
-	for _, a := range publishers {
-		if a.ID == id {
-			c.IndentedJSON(http.StatusOK, a)
-			return
-		}
+	if result := db.First(&publishers, c.Param("id")); result.Error != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": result.Error.Error(),
+		})
+		return
 	}
-	c.IndentedJSON(http.StatusNotFound, gin.H{"message": "Автор не знайдений"})
+	c.IndentedJSON(http.StatusOK, &publishers)
 }
-
 func getbookByID(c *gin.Context) {
-	id := c.Param("id")
-
-	for _, a := range books {
-		if a.ID == id {
-			c.IndentedJSON(http.StatusOK, a)
-			return
-		}
+	if result := db.First(&books, c.Param("id")); result.Error != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": result.Error.Error(),
+		})
+		return
 	}
-	c.IndentedJSON(http.StatusNotFound, gin.H{"message": "Книга не знайдена"})
+	c.IndentedJSON(http.StatusOK, &books)
 }
-
 func postauthors(c *gin.Context) {
-	var newauthor author
+	// Create a validating user's input:
+	var new Author
+	c.Bind(&new)
 
-	// Call BindJSON to bind the received JSON to
-	// newauthor.
-	if err := c.BindJSON(&newauthor); err != nil {
+	// Get data from request and create a new record
+	author := Author{Name: new.Name, Surname: new.Surname}
+	result := db.Create(&author)
+
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error"})
 		return
 	}
-
-	// Add the new author to the slice.
-	authors = append(authors, newauthor)
-	c.IndentedJSON(http.StatusCreated, newauthor)
+	c.JSON(http.StatusOK, gin.H{"message": "Added:", "post": author})
 }
-
 func postpublishers(c *gin.Context) {
-	var newpublisher publisher
 
-	if err := c.BindJSON(&newpublisher); err != nil {
+	var new Publisher
+	c.Bind(&new)
+
+	publisher := Publisher{Name: new.Name}
+	result := db.Create(&publisher)
+
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error"})
 		return
 	}
-
-	publishers = append(publishers, newpublisher)
-	c.IndentedJSON(http.StatusCreated, newpublisher)
+	c.JSON(http.StatusOK, gin.H{"message": "Added:", "post": publisher})
 }
-
 func postbooks(c *gin.Context) {
-	var newbook book
 
-	if err := c.BindJSON(&newbook); err != nil {
+	var new Book
+	c.Bind(&new)
+
+	book := Book{Title: new.Title, Author_ID: new.Author_ID, Price: new.Price, Publisher_ID: new.Publisher_ID, Published: new.Published, ISBN: new.ISBN}
+	result := db.Create(&book)
+
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error"})
 		return
 	}
-
-	books = append(books, newbook)
-	c.IndentedJSON(http.StatusCreated, newbook)
+	c.JSON(http.StatusOK, gin.H{"message": "Added", "post": book})
 }
