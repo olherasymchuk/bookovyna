@@ -94,6 +94,9 @@ var books = []book{
 
 func main() {
 	router := gin.Default()
+
+	router.StaticFile("/favicon.ico", "./favicon.ico")
+
 	api_1 := router.Group("/api/1")
 
 	api_1.GET("/authors", getauthors)
