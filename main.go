@@ -81,21 +81,7 @@ var books = []Book{
 	},
 }
 
-func main() {
-
-	var err error
-	db, err = gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
-
-	if err != nil {
-		panic("failed to connect database")
-	}
-	db.AutoMigrate(&Author{})
-	db.AutoMigrate(&Publisher{})
-	db.AutoMigrate(&Book{})
-	db.Create(authors)
-	db.Create(publishers)
-	db.Create(books)
-
+func SetupRouter() *gin.Engine {
 	router := gin.Default()
 
 	router.StaticFile("/favicon.ico", "./favicon.ico")
@@ -114,7 +100,26 @@ func main() {
 	api_1.GET("/books/:id", getbookByID)
 	api_1.POST("/books", postbooks)
 
-	router.Run("localhost:8080")
+	return router
+}
+
+func main() {
+
+	var err error
+	db, err = gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
+
+	if err != nil {
+		panic("failed to connect database")
+	}
+	db.AutoMigrate(&Author{})
+	db.AutoMigrate(&Publisher{})
+	db.AutoMigrate(&Book{})
+	db.Create(authors)
+	db.Create(publishers)
+	db.Create(books)
+
+	r := SetupRouter()
+	r.Run("localhost:8080")
 }
 func getauthors(c *gin.Context) {
 	if result := db.Find(&authors); result.Error != nil {
@@ -183,7 +188,7 @@ func postauthors(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Added:", "post": author})
+	c.JSON(http.StatusCreated, gin.H{"message": "Added:", "post": author})
 }
 func postpublishers(c *gin.Context) {
 
@@ -197,7 +202,7 @@ func postpublishers(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Added:", "post": publisher})
+	c.JSON(http.StatusCreated, gin.H{"message": "Added:", "post": publisher})
 }
 func postbooks(c *gin.Context) {
 
@@ -211,5 +216,5 @@ func postbooks(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Added", "post": book})
+	c.JSON(http.StatusCreated, gin.H{"message": "Added", "post": book})
 }
